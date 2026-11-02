@@ -156,7 +156,8 @@ quality, timing residuals, carrier scatter, clipping, and possible discontinuiti
   a correction recommendation; slow changes can remain undetected.
 - Lost USB samples can bias results. Large non-frame timing jumps are flagged;
   whole-frame loss and very small discontinuities cannot always be identified.
-- Low-SNR or TII-filled nulls can prevent initial acquisition. No confirmed PRS lock
+- Progressively shallower null thresholds support weak signals, but very low SNR
+  or TII-filled nulls can still prevent acquisition. No confirmed PRS lock
   produces an error, rather than a PPM estimate from unverified power dips.
 - Sample-rate and tuner clocks may be separate on modified hardware. RF PPM is
   approximate because nominal sample rate scales the frequency measurement.
@@ -172,7 +173,7 @@ python3 -m unittest discover -s tests -v
 
 The waveform tests generate full Mode I frames with PRS, cyclic prefixes and
 random OFDM payload, inject +/-20 ppm resampling, multi-kHz tuning errors, AWGN,
-multipath, quantization and dropped samples. Noise-only input must fail to lock.
+multipath, quantization, noise-filled nulls at -3 dB SNR, and dropped samples. Noise-only input must fail to lock.
 These are physical-layer tests, not FIC or audio decoding tests.
 
 ## References

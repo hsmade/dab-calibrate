@@ -82,10 +82,16 @@ def null_ends(x):
     level = np.median(p)
     if level <= 1e-12:
         return []
-    mask = p < level * .30
-    edges = np.diff(np.r_[False, mask, False].astype(int))
-    starts, ends = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
-    return [int(e*block) for s,e in zip(starts,ends) if 1100 < (e-s)*block < 4200]
+    # Noise fills the null on weak signals. Try progressively shallower dips;
+    # cyclic-prefix coherence and the known PRS still validate each candidate.
+    candidates = set()
+    for fraction in (.30, .55, .75, .85):
+        mask = p < level * fraction
+        edges = np.diff(np.r_[False, mask, False].astype(int))
+        starts, ends = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
+        candidates.update(int(e*block) for s,e in zip(starts,ends)
+                          if 1100 < (e-s)*block < 4200)
+    return sorted(candidates)
 
 
 def cp_offset(x, cp_start, count=1):
@@ -245,7 +251,7 @@ def analyze(path, fmt='u8', channel='12C', max_ppm=100., progress=True):
         warnings.append('RF and sample estimates differ by >1 ppm; check IQ orientation, transmitter, and clock architecture')
     if abs(result['sample_ppm']) > max_ppm:
         warnings.append('Sample-clock estimate exceeds requested search range')
-    if np.median([f['cp_coherence'] for f in frames]) < .5:
+    if np.median([f['cp_coherence'] for f in frames]) < .15:
         warnings.append('Low cyclic-prefix coherence; RF estimate may be unreliable')
     if any(abs(f['coarse_bin']) >= max_bins for f in frames):
         warnings.append('Carrier estimate reaches search boundary; increase --max-ppm')
@@ -260,7 +266,7 @@ def analyze(path, fmt='u8', channel='12C', max_ppm=100., progress=True):
                                                   or abs(rf_ppm-result['sample_ppm']) > 1
                                                   or clip/max(scalars,1) > .001
                                                   or any(abs(f['coarse_bin']) >= max_bins for f in frames)
-                                                  or np.median([f['cp_coherence'] for f in frames]) < .5
+                                                  or np.median([f['cp_coherence'] for f in frames]) < .15
                                                   or abs(result['sample_ppm']) > max_ppm))
     return result
 

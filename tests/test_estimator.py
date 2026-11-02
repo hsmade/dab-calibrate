@@ -87,6 +87,13 @@ class EstimatorTests(unittest.TestCase):
         self.assertEqual(r['timing_jumps'],0)
         self.assertTrue(r['correction_recommended'])
 
+    def test_weak_signal_with_noise_filled_null(self):
+        r = self.estimate(waveform(snr=-3))
+        self.assertAlmostEqual(r['sample_ppm'],20,delta=.15)
+        self.assertAlmostEqual(r['rf_ppm'],20,delta=.15)
+        self.assertGreater(r['frames_used'],20)
+        self.assertTrue(r['correction_recommended'])
+
     def test_noise_does_not_lock(self):
         rng = np.random.default_rng(10)
         x = (rng.normal(size=dab.FS)+1j*rng.normal(size=dab.FS)).astype('c8')
