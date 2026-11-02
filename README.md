@@ -126,7 +126,8 @@ setting or EEPROM. Integer-PPM APIs cannot apply a fractional correction exactly
 ## How it works
 
 1. Detect the DAB null interval in the power envelope.
-2. Estimate fractional carrier offset from cyclic-prefix correlation (modulo 1 kHz).
+2. Estimate fractional carrier offset by averaging cyclic-prefix correlations
+   across the available frame (modulo 1 kHz).
 3. Search integer carrier shifts using the known ETSI phase-reference symbol.
    The correct shift produces a concentrated channel impulse response.
 4. Interpolate an impulse-response peak for each frame's timing, retaining the
@@ -173,7 +174,7 @@ python3 -m unittest discover -s tests -v
 
 The waveform tests generate full Mode I frames with PRS, cyclic prefixes and
 random OFDM payload, inject +/-20 ppm resampling, multi-kHz tuning errors, AWGN,
-multipath, quantization, noise-filled nulls at -3 dB SNR, and dropped samples. Noise-only input must fail to lock.
+multipath, quantization, noise-filled nulls at -3 and -10 dB SNR, and dropped samples. Noise-only input must fail to lock.
 These are physical-layer tests, not FIC or audio decoding tests.
 
 ## References

@@ -78,19 +78,20 @@ def null_ends(x):
     if len(x) < FRAME//2:
         return []
     p = np.mean(np.abs(x[:len(x)//block*block].reshape(-1, block))**2, axis=1)
-    p = np.convolve(p, np.ones(5)/5, mode='same')
     level = np.median(p)
     if level <= 1e-12:
         return []
-    # Noise fills the null on weak signals. Try progressively shallower dips;
-    # cyclic-prefix coherence and the known PRS still validate each candidate.
+    # Noise fills weak nulls. Use two smoothing scales and progressively
+    # shallower dips; full-frame CP correlation and the PRS validate candidates.
     candidates = set()
-    for fraction in (.30, .55, .75, .85):
-        mask = p < level * fraction
-        edges = np.diff(np.r_[False, mask, False].astype(int))
-        starts, ends = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
-        candidates.update(int(e*block) for s,e in zip(starts,ends)
-                          if 1100 < (e-s)*block < 4200)
+    for width, fractions in ((5, (.30, .55, .75, .85)), (11, (.90, .94, .97))):
+        smooth = np.convolve(p, np.ones(width)/width, mode='same')
+        for fraction in fractions:
+            mask = smooth < level * fraction
+            edges = np.diff(np.r_[False, mask, False].astype(int))
+            starts, ends = np.flatnonzero(edges == 1), np.flatnonzero(edges == -1)
+            candidates.update(int(e*block) for s,e in zip(starts,ends)
+                              if 1100 < (e-s)*block < 4200)
     return sorted(candidates)
 
 
@@ -112,8 +113,8 @@ def prs_measure(x, end, max_bins, previous=None, expected=None):
     s = cp + 240  # FFT window deliberately inside cyclic prefix.
     if s < 0 or s+N > len(x):
         return None
-    fine, coherence = cp_offset(x, cp)
-    if coherence < .12:
+    fine, coherence = cp_offset(x, cp, 76)
+    if coherence < .06:
         return None
     y = fft.fft(x[s:s+N] * np.exp(-2j*np.pi*fine*np.arange(N)/FS))
     def search(shifts):
@@ -251,7 +252,7 @@ def analyze(path, fmt='u8', channel='12C', max_ppm=100., progress=True):
         warnings.append('RF and sample estimates differ by >1 ppm; check IQ orientation, transmitter, and clock architecture')
     if abs(result['sample_ppm']) > max_ppm:
         warnings.append('Sample-clock estimate exceeds requested search range')
-    if np.median([f['cp_coherence'] for f in frames]) < .15:
+    if np.median([f['cp_coherence'] for f in frames]) < .08:
         warnings.append('Low cyclic-prefix coherence; RF estimate may be unreliable')
     if any(abs(f['coarse_bin']) >= max_bins for f in frames):
         warnings.append('Carrier estimate reaches search boundary; increase --max-ppm')
@@ -266,7 +267,7 @@ def analyze(path, fmt='u8', channel='12C', max_ppm=100., progress=True):
                                                   or abs(rf_ppm-result['sample_ppm']) > 1
                                                   or clip/max(scalars,1) > .001
                                                   or any(abs(f['coarse_bin']) >= max_bins for f in frames)
-                                                  or np.median([f['cp_coherence'] for f in frames]) < .15
+                                                  or np.median([f['cp_coherence'] for f in frames]) < .08
                                                   or abs(result['sample_ppm']) > max_ppm))
     return result
 

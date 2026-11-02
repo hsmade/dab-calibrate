@@ -94,6 +94,13 @@ class EstimatorTests(unittest.TestCase):
         self.assertGreater(r['frames_used'],20)
         self.assertTrue(r['correction_recommended'])
 
+    def test_very_weak_signal_needs_frame_averaged_cp(self):
+        r = self.estimate(waveform(snr=-10))
+        self.assertAlmostEqual(r['sample_ppm'],20,delta=.2)
+        self.assertAlmostEqual(r['rf_ppm'],20,delta=.2)
+        self.assertGreater(r['frames_used'],15)
+        self.assertTrue(r['correction_recommended'])
+
     def test_noise_does_not_lock(self):
         rng = np.random.default_rng(10)
         x = (rng.normal(size=dab.FS)+1j*rng.normal(size=dab.FS)).astype('c8')
